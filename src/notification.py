@@ -2922,8 +2922,7 @@ class NotificationService:
             date_str = datetime.now().strftime('%Y%m%d')
             filename = f"report_{date_str}.md"
         
-        # 确保 reports 目录存在
-        # 修改：将路径指向项目根目录下的 reports (原代码指向了 src/reports)
+        # 确保 reports 目录存在（使用项目根目录下的 reports）
         reports_dir = Path(__file__).parent.parent / 'reports'
         reports_dir.mkdir(parents=True, exist_ok=True)
         
