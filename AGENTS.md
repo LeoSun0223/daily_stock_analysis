@@ -50,7 +50,27 @@
 > 注意：Docker 配置位于 `docker/` 目录，建议使用根目录下的脚本或指定文件路径
 - **构建并启动**：
   ```bash
-  docker compose -f docker/docker-compose.yml -f docker-compose.override.yml up -d --build
+  docker compose --env-file .env -f docker/docker-compose.yml -f docker-compose.override.yml up -d --build
+  ```
+- **仅构建镜像**：
+  ```bash
+  docker compose --env-file .env -f docker/docker-compose.yml -f docker-compose.override.yml build
+  ```
+- **启动定时任务（analyzer）**：
+  ```bash
+  docker compose --env-file .env -f docker/docker-compose.yml -f docker-compose.override.yml up -d analyzer
+  ```
+- **启动 WebUI（webui）**：
+  ```bash
+  docker compose --env-file .env -f docker/docker-compose.yml -f docker-compose.override.yml up -d webui
+  ```
+- **启动 API 服务（server）**：
+  ```bash
+  docker compose --env-file .env -f docker/docker-compose.yml -f docker-compose.override.yml up -d server
+  ```
+- **同时启动 analyzer + webui**：
+  ```bash
+  docker compose --env-file .env -f docker/docker-compose.yml -f docker-compose.override.yml up -d analyzer webui
   ```
 - **查看日志**：`docker logs -f stock-analyzer`
 - **清理旧镜像**：`docker image prune -f`
