@@ -1,120 +1,121 @@
 # AGENTS.md
-# 面向本仓库的智能代理协作指南
 
-## 仓库概览
-- 项目：A 股自选股智能分析系统（Python 3.11+）
-- 核心代码：`src/` 目录下（`analyzer.py`, `config.py`, `notification.py` 等）
-- 主要入口：`main.py`（位于根目录，调用 `src` 模块）
-- WebUI：`webui.py` + `web/` + `src/`
-- 配置：`.env` (本地) + `src/config.py` (配置类)
-- 数据：`data/` (SQLite, Lockfiles), `logs/`, `reports/`
+本文件定义在本仓库中执行开发、Issue 分析、PR 审查时的统一行为准则。  
 
-## 规则来源
-- 未发现 Cursor/Copilot 特定规则文件。
-- 遵循 `pyproject.toml` (Black/Isort) 和 `setup.cfg` (Flake8/Pytest) 配置。
+## 1. 通用协作原则
 
-## 常用命令
+- 语言与栈：Python 3.10+，遵循仓库现有架构与目录边界。
+- 配置约束：统一使用 `.env`（参见 `.env.example`）。
+- 代码质量：优先保证可运行、可回归验证、可追踪（日志/错误信息清晰）。
+- 风格约束：
+  - 行宽 120
+  - `black` + `isort` + `flake8`
+  - 关键变更需至少做语法检查（`py_compile`）或对应测试验证。
+  - 新增或修改的代码注释必须使用英文。
+- Git 约束：
+  - 未经明确确认，不执行 `git commit`。
+  - commit message 不添加 `Co-Authored-By`。
+  - 后续所有 commit message 必须使用英文。
 
-### 依赖与环境
-- 创建虚拟环境：`python -m venv venv`
-- 激活（Windows）：`venv\Scripts\activate`
-- 安装依赖：`pip install -r requirements.txt`
-- 复制配置：`cp .env.example .env`
+## 2. Issue 分析原则
 
-### 运行
-- **标准运行**：`python main.py`
-- **仅股票分析**：`python main.py --no-market-review`
-- **仅大盘复盘**：`python main.py --market-review`
-- **启用 WebUI**：`python main.py --webui` (或 `python main.py --webui-only`)
+每个 Issue 必须先回答 3 个问题：
 
-### 测试 (pytest)
-- 运行所有测试：`pytest`
-- 运行单文件：`pytest test_env.py`
-- 运行单用例：`pytest test_env.py::test_config_loading`
-- 失败即停：`pytest -x`
-- 详细输出：`pytest -v`
+1. 是否合理（Reasonable）
+- 是否描述了真实影响（功能错误、数据错误、性能/稳定性问题、体验退化）。
+- 是否有可验证证据（日志、截图、复现步骤、版本信息）。
+- 是否与项目目标相关（股票分析、数据源、通知、API/WebUI、部署链路）。
 
-### Lint / 格式化 / 静态检查
-- **Black 格式化**：`black .`
-- **Isort 排序**：`isort .`
-- **Flake8 检查**：`flake8 .`
-- **语法自检 (CI 模拟)**：
-  ```bash
-  python -m py_compile main.py webui.py
-  python -m py_compile src/config.py src/analyzer.py src/notification.py src/storage.py
-  python -m py_compile src/core/pipeline.py src/core/market_review.py
-  python -m py_compile data_provider/*.py
-  ```
+2. 是否是 Issue（Valid Issue）
+- 属于缺陷/功能缺失/回归/文档错误之一，而非纯咨询或环境误用。
+- 能定位到仓库责任边界；若是三方服务波动，也需判断是否需要仓库侧兜底。
+- 如果是使用问题，应转为文档改进或 FAQ，而不是代码缺陷。
 
-### Docker 操作
-> 注意：Docker 配置位于 `docker/` 目录，建议使用根目录下的脚本或指定文件路径
-- **构建并启动**：
-  ```bash
-  docker compose --env-file .env -f docker/docker-compose.yml -f docker-compose.override.yml up -d --build
-  ```
-- **仅构建镜像**：
-  ```bash
-  docker compose --env-file .env -f docker/docker-compose.yml -f docker-compose.override.yml build
-  ```
-- **启动定时任务（analyzer）**：
-  ```bash
-  docker compose --env-file .env -f docker/docker-compose.yml -f docker-compose.override.yml up -d analyzer
-  ```
-- **启动 WebUI（webui）**：
-  ```bash
-  docker compose --env-file .env -f docker/docker-compose.yml -f docker-compose.override.yml up -d webui
-  ```
-- **启动 API 服务（server）**：
-  ```bash
-  docker compose --env-file .env -f docker/docker-compose.yml -f docker-compose.override.yml up -d server
-  ```
-- **同时启动 analyzer + webui**：
-  ```bash
-  docker compose --env-file .env -f docker/docker-compose.yml -f docker-compose.override.yml up -d analyzer webui
-  ```
-- **查看日志**：`docker logs -f stock-analyzer`
-- **清理旧镜像**：`docker image prune -f`
+3. 是否好解决（Solvability）
+- 可否稳定复现。
+- 依赖是否可控（第三方 API、网络、权限、密钥）。
+- 变更范围与风险等级（低/中/高）。
+- 是否存在临时缓解方案（降级、兜底、开关、重试、回退策略）。
 
-## 代码风格与工程约定
+### Issue 结论模板
 
-### 1. 目录结构与导入
-- **核心逻辑**：全部位于 `src/` 目录下。
-- **导入规范**：
-  - 根目录脚本（`main.py`）导入：`from src.config import Config`
-  - `src` 内部相互导入：使用绝对导入 `from src.storage import Storage` 或相对导入 `from .enums import ...`
-- **数据源**：`data_provider/` 独立于 `src/`，作为基础组件被 `src` 调用。
+- 结论：`成立 / 部分成立 / 不成立`
+- 分类：`bug / feature / docs / question / external`
+- 优先级：`P0 / P1 / P2 / P3`
+- 难度：`easy / medium / hard`
+- 建议：`立即修复 / 排期修复 / 文档澄清 / 关闭`
 
-### 2. 格式化规范
-- **行宽**：120 字符（Black/Flake8 已配置）。
-- **引号**：双引号 `"` 优先（Black 默认）。
-- **导入排序**：标准库 -> 第三方库 -> 本地模块 (`src`, `data_provider`)。由 `isort` 自动维护。
+## 3. PR 分析原则
 
-### 3. 类型与命名
-- **类型注解**：公共函数必须包含类型注解。
-  - 推荐：`def analyze(code: str) -> Optional[AnalysisResult]:`
-- **命名**：
-  - 变量/函数：`snake_case`
-  - 类名：`PascalCase`
-  - 常量：`UPPER_SNAKE_CASE`
-- **配置**：不要使用全局变量，统一通过 `src.config.Config` 单例获取。
+每个 PR 需按以下顺序审查：
 
-### 4. 错误处理与日志
-- **异常捕获**：
-  - 避免裸 `try...except`，尽量捕获具体异常。
-  - 单个股票分析失败 **不应** 中断整个流程，应记录 ERROR 日志并继续。
-- **日志**：
-  - 使用 `logger = logging.getLogger(__name__)`。
-  - 关键路径使用 `INFO`，调试信息使用 `DEBUG`，错误堆栈使用 `logger.error(..., exc_info=True)`。
+1. 必要性（Necessity）
+- 是否解决明确问题，或提供明确业务价值。
+- 是否避免“为了改而改”的重构。
 
-### 5. Git 协作规范
-- **同步上游**：使用 `rebase` 保持提交历史线性。
-  - `git fetch upstream && git rebase upstream/main`
-- **提交信息**：遵循 Conventional Commits (e.g., `feat: add new signal`, `fix: resolve timeout`).
-- **文件变更**：
-  - 优先修改 `src/` 下的现有文件。
-  - `AGENTS.md` 为代理指南，若项目结构变更需同步更新此文件。
+2. 关联性（Traceability）
+- 是否关联对应 Issue（建议必须有：`Fixes #xxx` 或 `Refs #xxx`）。
+- 若无 Issue，PR 描述必须给出动机、场景与验收标准。
 
-## 常见问题
-- **ImportError**: 确认是否正确使用了 `from src.xxx`。
-- **代理报错**: 检查 `.env` 中的 `HTTP_PROXY`，Docker 容器内需检查 `docker-compose.override.yml` 的环境变量映射。
-- **依赖缺失**: 新增库后记得更新 `requirements.txt`。
+3. 类型判定（Type）
+- 明确标注：`fix / feat / refactor / docs / chore / test`。
+- 对“fix/bug”类 PR：必须说明原问题、根因、修复点、回归风险。
+
+4. 描述完整性（Description Completeness）
+- 必须包含：
+  - 背景与问题
+  - 变更范围（改了哪些模块）
+  - 验证方式与结果（命令、关键输出）
+  - 兼容性与破坏性变更说明（如有）
+  - 回滚方案（至少一句）
+  - 若为 issue 修复：在 PR description 中显式写明关闭语句（如 `Fixes #241` / `Closes #241`）
+
+5. 合入判定（Merge Readiness）
+- 可直接合入（Ready to Merge）条件：
+  - 目标明确且必要
+  - 有 Issue 或同等质量的问题描述
+  - 变更与描述一致，无隐藏副作用
+  - 关键验证已通过（语法/测试/关键链路）
+  - 无阻断性风险（安全、数据损坏、明显性能回退）
+- 不可直接合入（Not Ready）条件：
+  - 描述不完整，无法确认动机和影响
+  - 无验证证据
+  - 引入明显风险且无回滚策略
+  - 与仓库方向无关或重复实现
+
+## 4. 交付与发布同步原则
+
+- 功能开发、缺陷修复完成后，必须同步更新文档：
+  - `README.md`（用户可见能力、使用方式、配置项变化）
+  - `docs/CHANGELOG.md`（版本变更记录、影响范围、兼容性说明）
+- 发布语义必须与改动规模匹配，在提交说明中添加对应 tag 标签：
+  - `#patch`：修复类、小改动
+  - `#minor`：新增可用功能、向后兼容
+  - `#major`：破坏性变更或重大架构调整
+  - `#skip` / `#none`：明确不触发自动版本标签
+- 若改动用于解决已有 issue，PR description 必须声明关闭该 issue（`Fixes #xxx` / `Closes #xxx`），避免修复完成后 issue 悬挂。
+
+## 5. 建议评审输出格式
+
+### Issue 评审输出
+
+- `是否合理`：是/否 + 理由
+- `是否是 issue`：是/否 + 理由
+- `是否好解决`：是/否 + 难点
+- `建议动作`：修复/排期/文档/关闭
+
+### PR 评审输出
+
+- `必要性`：通过/不通过
+- `是否有对应 issue`：有/无（编号）
+- `PR 类型`：fix/feat/...
+- `description 完整性`：完整/不完整（缺失项）
+- `是否可直接合入`：可/不可 + 必改项
+
+## 6. 快速检查命令（可选）
+
+```bash
+./test.sh syntax
+python -m py_compile main.py src/*.py data_provider/*.py
+flake8 main.py src/ --max-line-length=120
+```
